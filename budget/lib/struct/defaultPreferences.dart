@@ -234,6 +234,7 @@ Future<Map<String, dynamic>> getDefaultPreferences() async {
     // "loansUseDifferenceInsteadOfTotalGoal": false,
     // "loansHideDate": false,
     "longTermLoansDifferenceFeature": false,
+    "hideSettledLongTermLoans": false, //hide long term loans that are paid off/collected on the loans page
     // *********************************************************** //
     // For showing information within a certain cycle for all spending wallet details page
     // cycleSettingsExtension = ""

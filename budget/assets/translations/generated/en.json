@@ -1180,5 +1180,8 @@
   "import-warning": "Import Warning",
   "import-warning-description": "Import may fail! Please make sure you have selected a valid Cashew [.sqlite] or [.sql] backup file",
   "duplicate-budget-question": "Duplicate Budget?",
-  "duplicate-budget": "Duplicate Budget"
+  "duplicate-budget": "Duplicate Budget",
+  "hide-settled-loans": "Hide settled loans",
+  "show-settled-loans": "Show settled loans",
+  "active-loans": "Not settled"
 }

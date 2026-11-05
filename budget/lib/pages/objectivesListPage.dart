@@ -40,6 +40,75 @@ double getDifferenceOfLoan(
       : objectiveAmount - totalAmount;
 }
 
+enum LoanSettledFilter {
+  all,
+  hideSettled,
+  onlySettled,
+}
+
+// A long term loan is settled when nothing remains to be paid or collected
+// (the amount paid/collected has reached, or gone over, the loan total).
+// The arguments are the values given by [WatchTotalAndAmountOfObjective]
+bool isLongTermLoanSettled({
+  required Objective objective,
+  required double objectiveAmount,
+  required double totalAmount,
+  required double percentageTowardsGoal,
+  required int numberDecimals,
+}) {
+  if (objective.type != ObjectiveType.loan) return false;
+  // Difference only loans have no total, they are settled when the difference is zero
+  if (getIsDifferenceOnlyLoan(objective)) return percentageTowardsGoal == 1;
+  // A new loan with no amount and no payments yet is not considered settled
+  if (objectiveAmount == 0 && totalAmount == 0) return false;
+  double remaining = double.tryParse(
+          (objectiveAmount - totalAmount).toStringAsFixed(numberDecimals)) ??
+      (objectiveAmount - totalAmount);
+  return remaining <= 0;
+}
+
+// Only shows [child] if the long term loan matches the settled filter
+// Goals (and anything that is not a loan) are always shown
+class FilterSettledLongTermLoan extends StatelessWidget {
+  const FilterSettledLongTermLoan({
+    required this.objective,
+    required this.filter,
+    required this.child,
+    super.key,
+  });
+  final Objective objective;
+  final LoanSettledFilter filter;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (filter == LoanSettledFilter.all ||
+        objective.type != ObjectiveType.loan) {
+      return child;
+    }
+    final int numberDecimals = Provider.of<AllWallets>(context)
+            .indexedByPk[appStateSettings["selectedWalletPk"]]
+            ?.decimals ??
+        2;
+    return WatchTotalAndAmountOfObjective(
+      objective: objective,
+      builder: (objectiveAmount, totalAmount, percentageTowardsGoal) {
+        bool isSettled = isLongTermLoanSettled(
+          objective: objective,
+          objectiveAmount: objectiveAmount,
+          totalAmount: totalAmount,
+          percentageTowardsGoal: percentageTowardsGoal,
+          numberDecimals: numberDecimals,
+        );
+        bool show = filter == LoanSettledFilter.hideSettled
+            ? isSettled == false
+            : isSettled;
+        return show ? child : SizedBox.shrink();
+      },
+    );
+  }
+}
+
 class ObjectivesListPage extends StatefulWidget {
   const ObjectivesListPage({required this.backButton, Key? key})
       : super(key: key);
@@ -118,6 +187,7 @@ class ObjectiveList extends StatelessWidget {
     this.showAddButton = true,
     this.searchFor,
     this.isIncome,
+    this.settledFilter = LoanSettledFilter.all,
     super.key,
   });
   final bool showExamplesIfEmpty;
@@ -125,6 +195,7 @@ class ObjectiveList extends StatelessWidget {
   final bool showAddButton;
   final String? searchFor;
   final bool? isIncome;
+  final LoanSettledFilter settledFilter;
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Objective>>(
@@ -253,19 +324,23 @@ class ObjectiveList extends StatelessWidget {
                       } else {
                         Objective objective = objectivesList[
                             index - (showDemoObjectives ? 1 : 0)];
-                        return ObjectiveContainer(
-                          index: index,
+                        return FilterSettledLongTermLoan(
                           objective: objective,
-                          demoObjective: showDemoObjectives,
-                          isGridView: true,
-                          forcedTotalAmount: showDemoObjectives
-                              ? (objective.income
-                                      ? randomInt[index].toDouble() * -1
-                                      : randomInt[index].toDouble()) *
-                                  15
-                              : null,
-                          forcedNumberTransactions:
-                              showDemoObjectives ? randomInt[index] : null,
+                          filter: settledFilter,
+                          child: ObjectiveContainer(
+                            index: index,
+                            objective: objective,
+                            demoObjective: showDemoObjectives,
+                            isGridView: true,
+                            forcedTotalAmount: showDemoObjectives
+                                ? (objective.income
+                                        ? randomInt[index].toDouble() * -1
+                                        : randomInt[index].toDouble()) *
+                                    15
+                                : null,
+                            forcedNumberTransactions:
+                                showDemoObjectives ? randomInt[index] : null,
+                          ),
                         );
                       }
                     },
@@ -282,23 +357,27 @@ class ObjectiveList extends StatelessWidget {
                       } else {
                         Objective objective = objectivesList[
                             index - (showDemoObjectives ? 1 : 0)];
-                        return Padding(
-                          padding: EdgeInsetsDirectional.only(
-                            bottom:
-                                getPlatform() == PlatformOS.isIOS ? 0 : 16.0,
-                          ),
-                          child: ObjectiveContainer(
-                            index: index,
-                            objective: objective,
-                            demoObjective: showDemoObjectives,
-                            forcedTotalAmount: showDemoObjectives
-                                ? (objective.income
-                                        ? randomInt[index].toDouble() * -1
-                                        : randomInt[index].toDouble()) *
-                                    15
-                                : null,
-                            forcedNumberTransactions:
-                                showDemoObjectives ? randomInt[index] : null,
+                        return FilterSettledLongTermLoan(
+                          objective: objective,
+                          filter: settledFilter,
+                          child: Padding(
+                            padding: EdgeInsetsDirectional.only(
+                              bottom:
+                                  getPlatform() == PlatformOS.isIOS ? 0 : 16.0,
+                            ),
+                            child: ObjectiveContainer(
+                              index: index,
+                              objective: objective,
+                              demoObjective: showDemoObjectives,
+                              forcedTotalAmount: showDemoObjectives
+                                  ? (objective.income
+                                          ? randomInt[index].toDouble() * -1
+                                          : randomInt[index].toDouble()) *
+                                      15
+                                  : null,
+                              forcedNumberTransactions:
+                                  showDemoObjectives ? randomInt[index] : null,
+                            ),
                           ),
                         );
                       }
@@ -315,9 +394,11 @@ class ObjectiveList extends StatelessWidget {
 class ObjectiveListDifferenceLoan extends StatelessWidget {
   const ObjectiveListDifferenceLoan({
     this.searchFor,
+    this.settledFilter = LoanSettledFilter.all,
     super.key,
   });
   final String? searchFor;
+  final LoanSettledFilter settledFilter;
   @override
   Widget build(BuildContext context) {
     if (appStateSettings["longTermLoansDifferenceFeature"] == false)
@@ -347,17 +428,21 @@ class ObjectiveListDifferenceLoan extends StatelessWidget {
             delegate: SliverChildBuilderDelegate(
               (BuildContext context, int index) {
                 Objective objective = objectivesList[index];
-                return Padding(
-                  padding: EdgeInsetsDirectional.only(
-                    bottom: getPlatform() == PlatformOS.isIOS
-                        ? 0
-                        : index == objectivesList.length - 1
-                            ? 0
-                            : 10,
-                  ),
-                  child: ObjectiveContainerDifferenceLoan(
-                    index: index,
-                    objective: objective,
+                return FilterSettledLongTermLoan(
+                  objective: objective,
+                  filter: settledFilter,
+                  child: Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      bottom: getPlatform() == PlatformOS.isIOS
+                          ? 0
+                          : index == objectivesList.length - 1
+                              ? 0
+                              : 10,
+                    ),
+                    child: ObjectiveContainerDifferenceLoan(
+                      index: index,
+                      objective: objective,
+                    ),
                   ),
                 );
               },
