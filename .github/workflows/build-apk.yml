@@ -53,6 +53,8 @@ jobs:
       # Add these repository secrets (Settings > Secrets and variables > Actions) to sign with
       # your own key so each new APK can be installed over the previous one:
       #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+      # Run `bash scripts/make-android-keystore.sh` once on your own machine: it creates the key
+      # and prints the 4 values. Never commit the keystore: this repository is public.
       # Without them a throwaway key is generated: the APK still installs, but because the key
       # changes every build, Android will ask you to uninstall the previous build first.
       - name: Configure signing
