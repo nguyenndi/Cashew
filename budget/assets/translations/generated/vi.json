@@ -1180,5 +1180,8 @@
   "import-warning": "Cảnh báo nhập khẩu",
   "import-warning-description": "Quá trình nhập có thể thất bại! Vui lòng đảm bảo rằng bạn đã chọn tệp sao lưu Cashew [.sqlite] hoặc [.sql] hợp lệ",
   "duplicate-budget-question": "Nhân đôi ngân sách?",
-  "duplicate-budget": "Nhân đôi ngân sách"
+  "duplicate-budget": "Nhân đôi ngân sách",
+  "hide-settled-loans": "Ẩn khoản vay đã tất toán",
+  "show-settled-loans": "Hiện khoản vay đã tất toán",
+  "active-loans": "Chưa tất toán"
 }

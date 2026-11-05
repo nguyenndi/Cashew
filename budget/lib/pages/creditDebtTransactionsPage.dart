@@ -166,6 +166,11 @@ class CreditDebtTransactionsState extends State<CreditDebtTransactions>
 
   @override
   Widget build(BuildContext context) {
+    final bool hideSettledLoans =
+        appStateSettings["hideSettledLongTermLoans"] == true;
+    final LoanSettledFilter settledFilter = hideSettledLoans
+        ? LoanSettledFilter.hideSettled
+        : LoanSettledFilter.all;
     List<Widget> longTermLoansList = [
       ObjectiveList(
         showExamplesIfEmpty: false,
@@ -173,6 +178,7 @@ class CreditDebtTransactionsState extends State<CreditDebtTransactions>
         showAddButton: true,
         searchFor: searchValue,
         isIncome: isCredit,
+        settledFilter: settledFilter,
       ),
     ];
 
@@ -479,29 +485,76 @@ class CreditDebtTransactionsState extends State<CreditDebtTransactions>
                                                 child: FadeTransition(
                                                   opacity:
                                                       _tabController.animation!,
-                                                  child: Padding(
-                                                    padding:
-                                                        const EdgeInsetsDirectional
-                                                            .only(start: 7),
-                                                    child: ButtonIcon(
-                                                      size: 48,
-                                                      iconPadding: 25,
-                                                      key: ValueKey(2),
-                                                      onTap: () {
-                                                        pushRoute(
-                                                          context,
-                                                          EditObjectivesPage(
-                                                            objectiveType:
-                                                                ObjectiveType
-                                                                    .loan,
+                                                  child: Row(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsetsDirectional
+                                                                .only(start: 7),
+                                                        child: Tooltip(
+                                                          message: hideSettledLoans
+                                                              ? "show-settled-loans"
+                                                                  .tr()
+                                                              : "hide-settled-loans"
+                                                                  .tr(),
+                                                          child: ButtonIcon(
+                                                            size: 48,
+                                                            iconPadding: 25,
+                                                            key: ValueKey(3),
+                                                            onTap: () {
+                                                              updateSettings(
+                                                                "hideSettledLongTermLoans",
+                                                                !hideSettledLoans,
+                                                                updateGlobalState:
+                                                                    false,
+                                                              );
+                                                              setState(() {});
+                                                            },
+                                                            icon: hideSettledLoans
+                                                                ? (appStateSettings[
+                                                                        "outlinedIcons"]
+                                                                    ? Icons
+                                                                        .visibility_off_outlined
+                                                                    : Icons
+                                                                        .visibility_off_rounded)
+                                                                : (appStateSettings[
+                                                                        "outlinedIcons"]
+                                                                    ? Icons
+                                                                        .visibility_outlined
+                                                                    : Icons
+                                                                        .visibility_rounded),
                                                           ),
-                                                        );
-                                                      },
-                                                      icon: appStateSettings[
-                                                              "outlinedIcons"]
-                                                          ? Icons.edit_outlined
-                                                          : Icons.edit_rounded,
-                                                    ),
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsetsDirectional
+                                                                .only(start: 7),
+                                                        child: ButtonIcon(
+                                                          size: 48,
+                                                          iconPadding: 25,
+                                                          key: ValueKey(2),
+                                                          onTap: () {
+                                                            pushRoute(
+                                                              context,
+                                                              EditObjectivesPage(
+                                                                objectiveType:
+                                                                    ObjectiveType
+                                                                        .loan,
+                                                              ),
+                                                            );
+                                                          },
+                                                          icon: appStateSettings[
+                                                                  "outlinedIcons"]
+                                                              ? Icons
+                                                                  .edit_outlined
+                                                              : Icons
+                                                                  .edit_rounded,
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
                                               ),
@@ -546,6 +599,7 @@ class CreditDebtTransactionsState extends State<CreditDebtTransactions>
                               ),
                               ObjectiveListDifferenceLoan(
                                 searchFor: searchValue,
+                                settledFilter: settledFilter,
                               ),
                               ...longTermLoansList
                             ],

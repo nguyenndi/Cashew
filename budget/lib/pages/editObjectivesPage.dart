@@ -48,6 +48,8 @@ class _EditObjectivesPageState extends State<EditObjectivesPage> {
   int currentReorder = -1;
   String searchValue = "";
   bool isFocused = false;
+  // Only used for long term loans - lets the user find paid off/collected loans
+  LoanSettledFilter settledFilter = LoanSettledFilter.all;
 
   @override
   void initState() {
@@ -162,6 +164,33 @@ class _EditObjectivesPageState extends State<EditObjectivesPage> {
           //     child: ObjectiveSettings(),
           //   ),
           // ),
+          if (widget.objectiveType == ObjectiveType.loan)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsetsDirectional.only(
+                    start: 13, end: 13, bottom: 8),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  children: [
+                    for (MapEntry<LoanSettledFilter, String> option in {
+                      LoanSettledFilter.all: "all".tr(),
+                      LoanSettledFilter.hideSettled: "active-loans".tr(),
+                      LoanSettledFilter.onlySettled: "settled".tr(),
+                    }.entries)
+                      ChoiceChip(
+                        label: TextFont(text: option.value, fontSize: 14),
+                        selected: settledFilter == option.key,
+                        onSelected: (_) {
+                          setState(() {
+                            settledFilter = option.key;
+                          });
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ),
           StreamBuilder<List<Objective>>(
             stream: database.watchAllObjectives(
               objectiveType: widget.objectiveType,
@@ -194,180 +223,185 @@ class _EditObjectivesPageState extends State<EditObjectivesPage> {
                   },
                   itemBuilder: (context, index) {
                     Objective objective = snapshot.data![index];
-                    return EditRowEntry(
+                    return FilterSettledLongTermLoan(
                       key: ValueKey(objective.objectivePk),
-                      extraIcon: objective.archived
-                          ? appStateSettings["outlinedIcons"]
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_off_rounded
-                          : appStateSettings["outlinedIcons"]
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_rounded,
-                      onExtra: () async {
-                        Objective updatedObjective = objective.copyWith(
-                          archived: !objective.archived,
-                          pinned: objective.archived,
-                        );
-                        await database
-                            .createOrUpdateObjective(updatedObjective);
-                      },
-                      opacity: objective.archived ? 0.5 : 1,
-                      canReorder: searchValue == "" &&
-                          (snapshot.data ?? []).length != 1,
-                      currentReorder:
-                          currentReorder != -1 && currentReorder != index,
-                      padding: EdgeInsetsDirectional.symmetric(
-                          horizontal: 10, vertical: 5),
-                      content: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          CategoryIcon(
-                            categoryPk: "-1",
-                            size: 31,
-                            category: TransactionCategory(
+                      objective: objective,
+                      filter: settledFilter,
+                      child: EditRowEntry(
+                        extraIcon: objective.archived
+                            ? appStateSettings["outlinedIcons"]
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_off_rounded
+                            : appStateSettings["outlinedIcons"]
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_rounded,
+                        onExtra: () async {
+                          Objective updatedObjective = objective.copyWith(
+                            archived: !objective.archived,
+                            pinned: objective.archived,
+                          );
+                          await database
+                              .createOrUpdateObjective(updatedObjective);
+                        },
+                        opacity: objective.archived ? 0.5 : 1,
+                        canReorder: searchValue == "" &&
+                            settledFilter == LoanSettledFilter.all &&
+                            (snapshot.data ?? []).length != 1,
+                        currentReorder:
+                            currentReorder != -1 && currentReorder != index,
+                        padding: EdgeInsetsDirectional.symmetric(
+                            horizontal: 10, vertical: 5),
+                        content: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            CategoryIcon(
                               categoryPk: "-1",
-                              name: "",
-                              dateCreated: DateTime.now(),
-                              dateTimeModified: null,
-                              order: 0,
-                              income: false,
-                              iconName: objective.iconName,
-                              colour: objective.colour,
-                              emojiIconName: objective.emojiIconName,
+                              size: 31,
+                              category: TransactionCategory(
+                                categoryPk: "-1",
+                                name: "",
+                                dateCreated: DateTime.now(),
+                                dateTimeModified: null,
+                                order: 0,
+                                income: false,
+                                iconName: objective.iconName,
+                                colour: objective.colour,
+                                emojiIconName: objective.emojiIconName,
+                              ),
+                              canEditByLongPress: false,
+                              borderRadius: 1000,
+                              sizePadding: 23,
                             ),
-                            canEditByLongPress: false,
-                            borderRadius: 1000,
-                            sizePadding: 23,
-                          ),
-                          SizedBox(width: 5),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                TextFont(
-                                  text: objective.name,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 19,
-                                ),
-                                TextFont(
-                                  textAlign: TextAlign.start,
-                                  text: getIsDifferenceOnlyLoan(objective)
-                                      ? "difference-loan".tr()
-                                      : objective.income
-                                          ? widget.objectiveType ==
-                                                  ObjectiveType.loan
-                                              ? "lent-funds".tr()
-                                              : "savings-goal".tr()
-                                          : widget.objectiveType ==
-                                                  ObjectiveType.loan
-                                              ? "borrowed-funds".tr()
-                                              : "expense-goal".tr(),
-                                  fontSize: 14,
-                                  textColor: getColor(context, "black")
-                                      .withOpacity(0.65),
-                                ),
-                                WatchTotalAndAmountOfObjective(
-                                  objective: objective,
-                                  builder: (double objectiveAmount,
-                                      double totalAmount,
-                                      double percentageTowardsGoal) {
-                                    bool showTotalSpent = appStateSettings[
-                                        "showTotalSpentForObjective"];
-                                    String amountSpentLabel =
-                                        getObjectiveAmountSpentLabel(
-                                      objective: objective,
-                                      context: context,
-                                      showTotalSpent: showTotalSpent,
-                                      objectiveAmount: objectiveAmount,
-                                      totalAmount: totalAmount,
-                                    );
-                                    String amountRemainingLabel =
-                                        objectiveRemainingAmountText(
-                                      objectiveAmount: objectiveAmount,
-                                      totalAmount: totalAmount,
-                                      context: context,
-                                    );
-                                    String differenceOnlyLoanLabel =
-                                        getIsDifferenceOnlyLoan(objective)
-                                            ? (percentageTowardsGoal == 1
-                                                ? "all-settled".tr()
-                                                : (getDifferenceOfLoan(
-                                                            objective,
-                                                            totalAmount,
-                                                            objectiveAmount) >
-                                                        0)
-                                                    ? "to-pay".tr()
-                                                    : "to-collect".tr())
-                                            : "";
-                                    return TextFont(
-                                      textAlign: TextAlign.start,
-                                      text: getIsDifferenceOnlyLoan(objective)
-                                          ? (amountSpentLabel +
-                                              " " +
-                                              differenceOnlyLoanLabel
-                                                  .toLowerCase())
-                                          : (amountSpentLabel +
-                                              amountRemainingLabel),
-                                      fontSize: 14,
-                                      textColor: getColor(context, "black")
-                                          .withOpacity(0.65),
-                                      maxLines: 2,
-                                    );
-                                  },
-                                ),
-                                // StreamBuilder<int?>(
-                                //   stream: database
-                                //       .getTotalCountOfTransactionsInObjective(
-                                //           objective.objectivePk)
-                                //       .$1,
-                                //   builder: (context, snapshot) {
-                                //     if (snapshot.hasData &&
-                                //         snapshot.data != null) {
-                                //       return TextFont(
-                                //         textAlign: TextAlign.start,
-                                //         text: snapshot.data.toString() +
-                                //             " " +
-                                //             (snapshot.data == 1
-                                //                 ? "transaction"
-                                //                     .tr()
-                                //                     .toLowerCase()
-                                //                 : "transactions"
-                                //                     .tr()
-                                //                     .toLowerCase()),
-                                //         fontSize: 14,
-                                //         textColor:
-                                //             getColor(context, "black")
-                                //                 .withOpacity(0.65),
-                                //       );
-                                //     } else {
-                                //       return TextFont(
-                                //         textAlign: TextAlign.start,
-                                //         text: "/ transactions",
-                                //         fontSize: 14,
-                                //         textColor:
-                                //             getColor(context, "black")
-                                //                 .withOpacity(0.65),
-                                //       );
-                                //     }
-                                //   },
-                                // ),
-                              ],
+                            SizedBox(width: 5),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextFont(
+                                    text: objective.name,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 19,
+                                  ),
+                                  TextFont(
+                                    textAlign: TextAlign.start,
+                                    text: getIsDifferenceOnlyLoan(objective)
+                                        ? "difference-loan".tr()
+                                        : objective.income
+                                            ? widget.objectiveType ==
+                                                    ObjectiveType.loan
+                                                ? "lent-funds".tr()
+                                                : "savings-goal".tr()
+                                            : widget.objectiveType ==
+                                                    ObjectiveType.loan
+                                                ? "borrowed-funds".tr()
+                                                : "expense-goal".tr(),
+                                    fontSize: 14,
+                                    textColor: getColor(context, "black")
+                                        .withOpacity(0.65),
+                                  ),
+                                  WatchTotalAndAmountOfObjective(
+                                    objective: objective,
+                                    builder: (double objectiveAmount,
+                                        double totalAmount,
+                                        double percentageTowardsGoal) {
+                                      bool showTotalSpent = appStateSettings[
+                                          "showTotalSpentForObjective"];
+                                      String amountSpentLabel =
+                                          getObjectiveAmountSpentLabel(
+                                        objective: objective,
+                                        context: context,
+                                        showTotalSpent: showTotalSpent,
+                                        objectiveAmount: objectiveAmount,
+                                        totalAmount: totalAmount,
+                                      );
+                                      String amountRemainingLabel =
+                                          objectiveRemainingAmountText(
+                                        objectiveAmount: objectiveAmount,
+                                        totalAmount: totalAmount,
+                                        context: context,
+                                      );
+                                      String differenceOnlyLoanLabel =
+                                          getIsDifferenceOnlyLoan(objective)
+                                              ? (percentageTowardsGoal == 1
+                                                  ? "all-settled".tr()
+                                                  : (getDifferenceOfLoan(
+                                                              objective,
+                                                              totalAmount,
+                                                              objectiveAmount) >
+                                                          0)
+                                                      ? "to-pay".tr()
+                                                      : "to-collect".tr())
+                                              : "";
+                                      return TextFont(
+                                        textAlign: TextAlign.start,
+                                        text: getIsDifferenceOnlyLoan(objective)
+                                            ? (amountSpentLabel +
+                                                " " +
+                                                differenceOnlyLoanLabel
+                                                    .toLowerCase())
+                                            : (amountSpentLabel +
+                                                amountRemainingLabel),
+                                        fontSize: 14,
+                                        textColor: getColor(context, "black")
+                                            .withOpacity(0.65),
+                                        maxLines: 2,
+                                      );
+                                    },
+                                  ),
+                                  // StreamBuilder<int?>(
+                                  //   stream: database
+                                  //       .getTotalCountOfTransactionsInObjective(
+                                  //           objective.objectivePk)
+                                  //       .$1,
+                                  //   builder: (context, snapshot) {
+                                  //     if (snapshot.hasData &&
+                                  //         snapshot.data != null) {
+                                  //       return TextFont(
+                                  //         textAlign: TextAlign.start,
+                                  //         text: snapshot.data.toString() +
+                                  //             " " +
+                                  //             (snapshot.data == 1
+                                  //                 ? "transaction"
+                                  //                     .tr()
+                                  //                     .toLowerCase()
+                                  //                 : "transactions"
+                                  //                     .tr()
+                                  //                     .toLowerCase()),
+                                  //         fontSize: 14,
+                                  //         textColor:
+                                  //             getColor(context, "black")
+                                  //                 .withOpacity(0.65),
+                                  //       );
+                                  //     } else {
+                                  //       return TextFont(
+                                  //         textAlign: TextAlign.start,
+                                  //         text: "/ transactions",
+                                  //         fontSize: 14,
+                                  //         textColor:
+                                  //             getColor(context, "black")
+                                  //                 .withOpacity(0.65),
+                                  //       );
+                                  //     }
+                                  //   },
+                                  // ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                      index: index,
-                      onDelete: () async {
-                        deleteObjectivePopup(context,
-                            objective: objective,
-                            routesToPopAfterDelete:
-                                RoutesToPopAfterDelete.None);
-                        return true;
-                      },
-                      openPage: AddObjectivePage(
-                        objective: objective,
-                        routesToPopAfterDelete: RoutesToPopAfterDelete.One,
+                          ],
+                        ),
+                        index: index,
+                        onDelete: () async {
+                          deleteObjectivePopup(context,
+                              objective: objective,
+                              routesToPopAfterDelete:
+                                  RoutesToPopAfterDelete.None);
+                          return true;
+                        },
+                        openPage: AddObjectivePage(
+                          objective: objective,
+                          routesToPopAfterDelete: RoutesToPopAfterDelete.One,
+                        ),
                       ),
                     );
                   },
