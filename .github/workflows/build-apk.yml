@@ -20,9 +20,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Flutter version used to build. pubspec.lock needs Flutter >= 3.19 / Dart >= 3.3
-  # and android/ uses AGP 7.3.1 + Gradle 7.5, so stay on a release from that era.
-  FLUTTER_VERSION: "3.24.5"
+  # Flutter version used to build. pubspec.lock is resolved for Flutter 3.19 / Dart 3.3 and
+  # pubspec.yaml pins intl ^0.18.1, which newer Flutter (>= 3.22) forbids (it pins intl 0.19).
+  FLUTTER_VERSION: "3.19.6"
   JAVA_VERSION: "17"
   # versionCode is pubspec build number (416 at time of writing). Offset the CI run
   # number so every CI build has a higher versionCode and installs over the previous one.
