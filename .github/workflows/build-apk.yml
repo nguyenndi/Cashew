@@ -4,7 +4,8 @@ name: Build APK
 # (a merged pull request, or a direct push), and on demand from the Actions tab.
 on:
   push:
-    branches: [main]
+    # The feature branch is listed so changes can be test-built before they are merged
+    branches: [main, claude/charming-franklin-2f7vlv]
     paths-ignore:
       - "**.md"
       - "promotional/**"
